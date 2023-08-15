@@ -1,518 +1,554 @@
-#include <stdio.h>
-#include <stdlib.h> /* abs */
-#include <conio.h>  /*clrscr*/
-#include <string>
-#include <string.h>
 #include <iostream>
+#include <string>
 #include <vector>
-#include <math.h>
-
+#include <cstdlib>
+#include <unistd.h>
 
 using namespace std;
+// define global variables
+bool AIvAI = false;
+bool playing_AI = false;
+bool playing_as_X = true;
+bool x_won = false;
+bool o_won = false;
+int x_wins = 0;
+int o_wins = 0;
+int win_row_or_column;
+string win_type = "Null";
+vector<char> board_vector = {' ' , ' ', ' ' , ' ' , ' ' , ' ' , ' ' , ' ' , ' '};
+vector<char> ai_possible_turns = {};
+vector<char> ai_turns_to_win = {};
 
-// BLACK NORM
+int min_element_index(vector<int> matrix) { // returns the index of the lowest value in a int vector
 
-int whites_turn = 1;
-
-vector<char> init_board(int is_white)
-{
-    if (is_white)
-    {
-        char row_type_1[8] = {'W', ' ', 'W', ' ', 'W', ' ', 'W', ' '};
-        char row_type_2[8] = {' ', 'W', ' ', 'W', ' ', 'W', ' ', 'W'};
-        // char row_type_3[8] = {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '};
-        vector<char> board(64, ' ');
-
-        for (int i = 0; i < 8; i++)
-        {
-            board[i] = row_type_1[i];
-            board[i + 8] = row_type_2[i];
-            board[i + 16] = row_type_1[i];
+    int lowest = matrix[0];
+    int index = 0;
+    for (int i = 0; i < matrix.size(); i++) {
+        if (matrix[i] < lowest) {
+            lowest = matrix[i];
+            index = 0;
         }
-
-        return board;
     }
-    else
-    {
-        char row_type_1[8] = {'B', ' ', 'B', ' ', 'B', ' ', 'B', ' '};
-        char row_type_2[8] = {' ', 'B', ' ', 'B', ' ', 'B', ' ', 'B'};
-        // char row_type_3[8] = {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '};
-        vector<char> board(64, ' ');
 
-        for (int i = 0; i < 8; i++)
-        {
-            board[64 - 24 + i] = row_type_2[i];
-            board[64 - 16 + i] = row_type_1[i];
-            board[64 - 8 + i] = row_type_2[i];
+    return lowest;
+}
+
+int max_element_index(vector<int> matrix) { // returns the index of the highest value in a int vector
+
+    int highest = matrix[0];
+    int index = 0;
+    for (int i = 0; i < matrix.size(); i++) {
+        if (matrix[i] > highest) {
+            highest = matrix[i];
+            index = i;
         }
+    }
 
-        return board;
+    return index;
+
+}
+
+
+void print_vector(vector<int> matrix) {//(for debugging only)
+    for (int i = 0; i < matrix.size(); i++) {
+        cout << matrix[i];
     }
 }
 
-void render_board(vector<char> checkerboard_black, vector<char> checkerboard_white, vector<char> checkerboard_kings)
-{
 
-    // printf("\033c");
-
-    vector<char> checkerboard(64, ' ');
-    for (int i = 0; i < 64; i++)
-    {
-        if (checkerboard_black[i] != ' ')
-        {
-            checkerboard[i] = checkerboard_black[i];
-        }
+int str_pos_to_int(string pos) { // converts POS (I.E. A,1) to an int
+    int row;
+    int column;
+    if (pos.length() != 3) {
+        return 10;
+    }
+    if (pos[2] - 48 < 1 || pos[2] - 48 > 3) {
+        return 10;
+    }
+    if (tolower(pos[0]) == 'a' && pos[2] > 0 && pos[2] > 0 < 4) {
+        row = 0;
+    } else if (tolower(pos[0]) == 'b' && pos[2] > 0 && pos[2] > 0 < 4) {
+        row = 1;
+    } else if (tolower(pos[0]) == 'c' && pos[2] > 0 && pos[2] > 0 < 4) {
+        row = 2;
+    } else {
+        return 10;
     }
 
-    for (int i = 0; i < 64; i++)
-    {
-        if (checkerboard_white[i] != ' ')
-        {
-            checkerboard[i] = checkerboard_white[i];
-        }
-    }
-
-    string printed_vec;
-
-    printed_vec += "\n   |  ";
-    for (int i = 0; i < 8; i++)
-    {
-        printed_vec += " ";
-        printed_vec += "  |  ";
-    }
-
-    printed_vec += "\n   |  ";
-    for (int i = 0; i < 8; i++)
-    {
-        printed_vec += char(i + 49);
-        string line = "  |  ";
-        printed_vec += line;
-    }
-
-    string line = ("\n-----------------------------------------------------");
-    printed_vec += line;
-
-
-    for (int i = 0; i < 8; i++)
-    {
-        printed_vec += "\n   |  ";
-        for (int j = 0; j < 8; j++)
-        {
-            printed_vec += " ";
-            string line = "  |  ";
-            printed_vec += line;
-        }
-
-        printed_vec = printed_vec + "\n" + " " + char(65 + i) + " |  ";
-
-        for (int j = 0; j < 8; j++)
-        {
-            char symbol = '-';
-
-            if (checkerboard_kings[i * 8 + j] != ' ')
-            {
-                symbol = 'o';
-            }
-
-            if (checkerboard[i * 8 + j] != ' ')
-            {
-                printed_vec[printed_vec.length() - 1] = symbol;
-                printed_vec += checkerboard[i * 8 + j];
-            }
-            else
-            {
-                printed_vec += " ";
-            }
-            string line = "  |  ";
-            printed_vec += line;
-
-            if (checkerboard[i * 8 + j] != ' ')
-            {
-                printed_vec[printed_vec.length() - 5] = symbol;
-                printed_vec[printed_vec.length() - (61)] = symbol;
-            }
-        }
-
-        printed_vec += "\n   |  ";
-        for (int j = 0; j < 8; j++)
-        {
-            printed_vec += " ";
-            string line = "  |  ";
-            printed_vec += line;
-
-            char symbol = '-';
-
-            if (checkerboard_kings[i * 8 + j] != ' ')
-            {
-                symbol = 'o';
-            }
-
-            if (checkerboard[i * 8 + j] != ' ')
-            {
-                printed_vec[printed_vec.length() - 6] = symbol;
-            }
-        }
-
-        line = ("\n------------------------------------------------------");
-        printed_vec += line;
-    }
-
-    printed_vec + "\n";
-
-    cout << printed_vec;
+    column = int(pos[2]) - 48;
+    return (row * 3) + column - 1;
 }
 
-/*
-printf("|  ");
-        for (int j = 0; j < 8; j++) {
-            cout << " ";
-            if (cout << checkerboard[i * 8 + j] == 'B' || cout << checkerboard[i * 8 + j] == 'W')
-
-            } else {
-
+//checks if a player has won (takes either 'x' or 'y' as inputs)
+bool check_for_win(char player_win, char opposite_player, vector<char> matrix, int matches_needed) {
+    // checks horizontal
+    for (int i = 0; i < 3; i++) {
+        int matches = 0;
+        for (int j = 0; j < 3; j++) {
+            if (matrix[i*3+j] == player_win) {
+                matches++;
             }
-            cout << "  |  ";
+            if (matrix[i*3+j] == opposite_player) {
+                matches = -3;
+            }
         }
-        printf("\n|  ");
-        for (int j = 0; j < 8; j++) {
-            cout << checkerboard[i * 8 + j];
-            cout << "  |  ";
-        }
-        printf("\n|  ");
-        for (int j = 0; j < 8; j++) {
-            cout << " ";
-            cout << "  |  ";
-        }
-*/
-
-int AI(bool is_white, vector<char> checkerboard_black, vector<char> checkerboard_white, vector<char> checkerboard_kings) { // returns the pos, in an in int, of Ai's move
-    vector<char> combos;
-    for (int i = 0; i < 100; i++ ) {
-        for (int j = 0; j < 20; j++) {
-
+        if (matches == matches_needed) {
+            win_type = "Horizontal";
+            win_row_or_column = i;
+            return true;
         }
     }
-}
-
-int str_pos_to_pos(string str_pos, vector<char> checkerboard_black, vector<char> checkerboard_white)
-{
-    int str_row = tolower(str_pos[0]) - 97;
-    int str_column = (str_pos[2]) - 49;
-    if (str_pos.length() > 3)
-    {
-        cout << "C";
-        return -1;
+    // checks vertical
+    for (int i = 0; i < 3; i++) {
+        int matches = 0;
+        for (int j = 0; j < 3; j++) {
+            if (matrix[j*3+i] == player_win) {
+                matches++;
+            }
+            if (matrix[j*3+i] == opposite_player) {
+                matches = -3;
+            }
+            if (matches == matches_needed) {
+                win_type = "Vertical";
+                win_row_or_column = i;
+                return true;
+            } 
+        }
     }
-    if (str_row > 8 || str_row < 0)
-    {
-        cout << "I";
-        return -1;
+    // checks diagonal, left to right, top to bottom
+    int matches = 0;
+    for (int i = 0; i < 3; i++) {
+        if (matrix[i * 3 + i] == player_win) {
+            matches++;
+        }
+        if (matrix[i * 3 + i] == opposite_player) {
+            matches = -3;
+        }
     }
-    if (str_column > 8 || str_column < 0)
-    {
-        cout << "O";
-        return -1;
-    }
-
-    int row = (str_row)*8;
-    int column = str_column;
-    return row + column;
-}
-
-bool can_jump(bool is_white, int start_pos, int target_pos, vector<char>& checkerboard_black, vector<char>& checkerboard_white, vector<char>& checkerboard_kings)
-{
-
-    vector<char> *users_board;
-    vector<char> *enemy_board;
-
-    char en_char;
-
-    if (is_white)
-    {
-        users_board = &checkerboard_white;
-        enemy_board = &checkerboard_black;
-        en_char = 'B';
-    }
-    else
-    {
-        users_board = &checkerboard_black;
-        enemy_board = &checkerboard_white;
-        en_char = 'W';
-    }
-
-    int start_row = (start_pos % 8);
-    int start_col = floor(start_pos / 8);
-    int targ_row = (target_pos % 8);
-    int targ_col = floor(target_pos / 8);
-
-    int row_diff = (start_row - targ_row);
-    int col_diff = (start_col - targ_col);
-
-    if (abs(row_diff) > 2 || abs(col_diff) > 2)
-    {
-        return false;
-    }
-
-    int row_s = (row_diff / abs(row_diff));
-    int col_s = (col_diff / abs(col_diff));
-
-    if (is_white && checkerboard_kings[start_pos] == ' ') {
-        row_s = 1;
-    } else if (!is_white && checkerboard_kings[start_pos] == ' ') {
-        row_s = -1;
-    }
-
-    // cout << start_pos;
-    //cout << (start_pos + (row_s * 8) + (col_s * 1)) << "\n";
-
-    
-    if ((*enemy_board)[start_pos + (row_s * 8) + (col_s * 1)] == en_char && (*users_board)[target_pos] == ' ' && (*enemy_board)[target_pos] == ' ')
-    {
-        (checkerboard_kings)[start_pos + (row_s * 8) + (col_s * 1)] = ' ';
-        (*enemy_board)[start_pos + (row_s * 8) + (col_s * 1)] = ' ';
+    if (matches == matches_needed) {
+        win_type = "Diagonal-1";
         return true;
     }
-
-    return false; // default
+    // checks diagonal, right to left, bottom to top
+    matches = 0;
+    for (int i = 2; i > -1; i--) {
+        if (matrix[i * 3 + (3 - i) - 1] == player_win) {
+            matches++;
+        }
+        if (matrix[i * 3 + (3 - i) - 1] == opposite_player) {
+            matches = -3;
+        }
+    }
+    if (matches == matches_needed) {
+        win_type = "Diagonal-2";
+        return true;
+    }
+    // Default return so that function does not end up throwing a void error
+    return false;
 }
 
-bool is_move_blocked(int start_pos, bool is_white, vector<char> checkerboard_white, vector<char> checkerboard_black, vector<char> checkerboard_kings) { // checks to make sure that there is an open space for the piece to move to
 
-    vector<char> checkerboard(64, ' ');
+void render_board() {
+    cout << "   | 1 | 2 | 3\n";
+    cout << "---|---|---|---\n";
+    for (int i = 0; i < 3; i++) {
+        if (i == 0) {
+            cout << " A | ";
+        } else if (i == 1) {
+            cout << " B | ";
+        } else {
+            cout << " C | ";
+        }
+        for (int j = 0; j < 3; j++) {
+            cout << board_vector[i * 3 + j];
+            if (j < 2) {
+                cout << " | ";
+            }
+        }
+        if (i < 2) {
+            cout << "\n---|---|---|---\n";
+        }
+    }
+}
 
-    for (int i = 0; i < 64; i++)
-    {
-        if (checkerboard_black[i] != ' ')
-        {
-            checkerboard[i] = checkerboard_black[i];
+int generate_AI_Turns(char A_char, char B_char) {
+    //A = AI
+    //B = opponent
+    
+    int total_filled_spaces = 0;
+    for (int i = 0; i < 9; i++) {
+        if (board_vector[i] != ' ') {
+            total_filled_spaces++;
         }
     }
 
-    for (int i = 0; i < 64; i++)
-    {
-        if (checkerboard_white[i] != ' ')
-        {
-            checkerboard[i] = checkerboard_white[i];
+    if (total_filled_spaces == 1 && board_vector[4] == ' ' && A_char == 'O') { // for first turn of 'O' ONLY
+        return 4;
+    }
+    if (total_filled_spaces == 0 && board_vector[2] == ' ' && A_char == 'X') { // for first turn of 'X' ONLY
+        return 2;
+    }
+
+    vector<int> filled_spaces_per_row_B = {0,0,0}; // calculates filled spaces for each row for X only
+    for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 3; j++) {
+            if (board_vector[i * 3 + j] == B_char) {
+                filled_spaces_per_row_B[i]++;
+            }
         }
     }
 
-    char users_char;
+    vector<int> filled_spaces_per_row_A = {0,0,0}; // calculates filled spaces for each row for O only
+    for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 3; j++) {
+            if (board_vector[i * 3 + j] == A_char) {
+                filled_spaces_per_row_A[i]++;
+            }
+        }
+    }
 
-    int m = 0; // modifier
+    vector<int> filled_spaces_per_column_B = {0,0,0}; // calculates filled spaces for each column for X only
+    for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 3; j++) {
+            if (board_vector[j * 3 + i] == B_char) {
+                filled_spaces_per_column_B[i]++;
+            }
+        }
+    }
 
-    int s;
-    if (is_white) {
-        users_char = 'W';
-        s = 1;
+    vector<int> filled_spaces_per_column_A = {0,0,0}; // calculates filled spaces for each column for O only
+    for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 3; j++) {
+            if (board_vector[j * 3 + i] == A_char) {
+                filled_spaces_per_column_A[i]++;
+            }
+        }
+    }
+
+    int filled_spaces_diagonally_1_A = 0; // calculates filled spaces diagonally-1 for O only
+    for (int i = 0; i < 3; i++) {
+        if (board_vector[i * 3 + i] == A_char) {
+            filled_spaces_diagonally_1_A++;
+        }
+    }
+
+    int filled_spaces_diagonally_1_B = 0; // calculates filled spaces diagonally-1 for X only
+    for (int i = 0; i < 3; i++) {
+        if (board_vector[i * 3 + i] == B_char) {
+            filled_spaces_diagonally_1_B++;
+        }
+    }
+
+    int filled_spaces_diagonally_2_A = 0; // calculates filled spaces diagonally-2 for O only
+    for (int i = 2; i > -1; i--) {
+        if (board_vector[i * 3 + (3 - i) - 1] == A_char) {
+            filled_spaces_diagonally_2_A++;
+        }
+    }
+
+    int filled_spaces_diagonally_2_B = 0; // calculates filled spaces diagonally-2 for X only
+    for (int i = 2; i > -1; i--) {
+        if (board_vector[i * 3 + (3 - i) - 1] == B_char) {
+            filled_spaces_diagonally_2_B++;
+        }
+    }
+
+    int best_diagonal = 0;
+    if (filled_spaces_diagonally_1_B == 0 && filled_spaces_diagonally_1_A >= filled_spaces_diagonally_2_A) {
+        best_diagonal = 1;
+    } else if (filled_spaces_diagonally_2_B == 0 && filled_spaces_diagonally_2_A >= filled_spaces_diagonally_1_A) {
+        best_diagonal = 2;
+    }
+
+    int best_row = 0;
+    for (int i = 0; i < 3; i++) {
+        if (filled_spaces_per_row_B[i] == 0 && max_element_index(filled_spaces_per_row_A) == i) {
+            best_row = i;
+        }
+    }
+
+    int best_column = 0;
+    for (int i = 0; i < 3; i++) {
+        if (filled_spaces_per_column_B[i] == 0 && max_element_index(filled_spaces_per_column_A) == i) {
+            best_column = i;
+        }
+    }
+    string best = "Diagonal"; // calculate which row, column, or diagonal shot has more filled x's
+    int best_filled_spaces;
+    if (best_diagonal == 1) {
+        best_filled_spaces = filled_spaces_diagonally_1_A;
     } else {
-        users_char = 'B';
-        s = -1;
+        best_filled_spaces = filled_spaces_diagonally_2_A;
+    }
+    if (filled_spaces_per_row_A[best_row] >= best_filled_spaces && filled_spaces_per_row_B[best_row] == 0) {
+        best_filled_spaces = filled_spaces_per_row_A[best_row];
+        best = "Row";
+    } else if (filled_spaces_per_column_A[best_column] >= best_filled_spaces && filled_spaces_per_column_B[best_column] == 0) {
+        best_filled_spaces = filled_spaces_per_column_A[best_column];
+        best = "Column";
     }
 
-    int i = 1;
-    for (i = 1; i < 3; ++i) {
-        m = s * i;
-        cout << "I: " << i << "\n";
-        cout << "M: " << m << "\n";
-        if (checkerboard[start_pos] == users_char) {
-            if (checkerboard[start_pos + (i * m * 8) + 1*i] == ' ' || checkerboard[start_pos + (i * m * 8) - 1*i] == ' ') {
-                return false;
+    // calculates wether the AI could win by making a move to complete a three in a row rather than go on the defensive
+    bool attack_over_defensive = false;
+    if (filled_spaces_per_row_A[best_row] == 2 && filled_spaces_per_row_B[best_row] == 0) {
+        attack_over_defensive = true;
+        best = "Row";
+    } else if (filled_spaces_per_column_A[best_column] == 2 && filled_spaces_per_column_B[best_column] == 0) {
+         attack_over_defensive = true;
+         cout << "2";
+         best = "Column";
+    } else if (best_diagonal == 1 && filled_spaces_diagonally_1_A == 2 && filled_spaces_diagonally_1_B == 0) {
+         attack_over_defensive = true;
+         best = "Diagonal";
+    } else if (best_diagonal == 2 && filled_spaces_diagonally_2_A == 2 && filled_spaces_diagonally_2_B == 0) {
+         attack_over_defensive = true;
+         best = "Diagonal";
+    }
+
+    // checks for near win, if so (matches == 2) it should go on the defensive
+    /*cout << "\n Data: " << A_char << " Best: " << best << " Check for win: "<< check_for_win(A_char, B_char, board_vector, 2) << " " << win_type << " Win row or column: " << win_row_or_column << " Attack over defensive: " << attack_over_defensive << " Filled spaces per column A: ";
+    print_vector(filled_spaces_per_column_A);
+    cout << " filled spaces diag-1" << " " << filled_spaces_diagonally_1_A;
+    cout << "\n";
+    */
+    
+    if (check_for_win(B_char, A_char, board_vector, 2) && !attack_over_defensive) { // defensive moves
+        if (win_type == "Horizontal") {
+            for (int i = 0; i < 3; i++) {
+                if (board_vector[(win_row_or_column) * 3 + i] == ' ') {
+                    // check for empty space in near win column, if so fill it with an 'O'
+                    return win_row_or_column * 3 + i;
+                    //break;
+                }
+            }
+        } else if (win_type == "Vertical") {
+            for (int i = 0; i < 3; i++) {
+                if (board_vector[i * 3 + win_row_or_column] == ' ') {
+                    // check for empty space in near win row, if so fill it with an 'O'
+                    return i * 3 + win_row_or_column;
+                    //break;
+                }
+            }
+        } else if (win_type == "Diagonal-1") { // left to right, top to bottom
+            for (int i = 0; i < 3; i++) {
+                if (board_vector[i * 3 + i] == ' ') {
+                    return i * 3 + i;
+                }
+            }
+        } else if (win_type == "Diagonal-2") { // right to left, bottom to top
+            for (int i = 2; i > -1; i--) {
+                if (board_vector[i * 3 + (3 - i) - 1] == ' ') {
+                    return i * 3 + (3 - i) - 1;
+                }
+            }
+        } else {
+            //cout << "Opponent does not have two in a row horizontally, vertically, as well as diagonally. \n ";
+        }
+    }
+
+    if (best == "Diagonal") { // AI makes its turn by returning a position for the board
+        if (best_diagonal == 1) {
+            for (int i = 0; i < 3; i++) {
+                if (board_vector[i * 3 + i] == ' ') {
+                    return i * 3 + i;
+                }
+            }
+        } else {
+            for (int i = 2; i > -1; i--) {
+                if (board_vector[i * 3 + (3 - i) - 1] == ' ') {
+                    return i * 3 + (3 - i) - 1;
+                }
             }
         }
-        if (checkerboard_kings[start_pos] == users_char) {
-            if (checkerboard[start_pos + (-1 * 8 * i) + 1*i] == ' ' || checkerboard[start_pos + (1 * 8 * i) - 1*i] == ' ') {
-                return false;
+    } else if (best == "Row") {
+        for (int i = 0; i < 3; i++) {
+            if (board_vector[best_row * 3 + i] == ' ') {
+                return best_row * 3 + i;
             }
         }
-        if (checkerboard_kings[start_pos] == users_char) {
-            if (checkerboard[start_pos + (-1 * 8 * i) + 1*i] == ' ' || checkerboard[start_pos + (1 * 8 * i) - 1*i] == ' ') {
-                return false;
+    } else if (best == "Column") {
+        for (int i = 0; i < 3; i++) {
+            if (board_vector[i * 3 + best_column] == ' ') {
+                return i * 3 + best_column;
             }
         }
+    }
+
+    //returns an empty position to prevent a non-void error just in case of draw or in a scenario where the AI just can't win
+    for (int i = 0; i < 9; i++) {
+        if (board_vector[i] == ' ') {
+            return i;
+        }
+    }
+
+    return 0;
+}
+
+void display_win_message() {
+    if (x_won) {
+        cout << "\n\nX has won the game!\n";
+    } else {
+        cout << "\n\nO has won the game!\n";
+    }
+    if (x_wins > 1) { 
+        cout << "\nX has won " << x_wins << " time.\n\n";
+    } else {
+        cout << "\nX has won " << x_wins << " times.\n\n";
+    }
+    if (o_wins > 1) {
+        cout << "\nX has won " << x_wins << " time.\n\n";
+    } else {
+        cout << "\nO has won " << o_wins << " times.\n\n";
+    }
+    x_won = false;
+    o_won = false;
+}
+int main() {
+
+    string answer;
+
+    while (!(answer == "1" || answer == "2" || answer == "3")) {
+        cout << "How would you like to play? \n1] Player v. Player\n2] Player v. AI\n3] AI v. AI\n\n";
+        cin >> answer;
+        if (answer == "1") {
+            playing_AI = false;
+        } else if (answer == "2") {
+            playing_AI = true;
+        } else if (answer == "3") {
+            AIvAI = true;
+            playing_AI = true;
+        } else {
+            cout << "Answer Invalid. Please choose a valid input [1 or 2].\n";
+        }
+    }
+
+    cout << "\n";
+
+    answer = "";
+
+    bool x_turn = true;
+
+    if (!AIvAI && playing_AI) {
+        while (!(answer == "1" || answer == "2")) {
+            cout << "Would you like P1 to play as X or as O?\n1] X \n2] O\n";
+            cin >> answer;
+            if (answer == "1") {
+                playing_as_X = true;
+            } else if (answer == "2") {
+                playing_as_X = false;
+            } else {
+                cout << "Answer Invalid. Please choose a valid input [1 or 2].\n";
+            }
+        }
+    }
+
+    if (!AIvAI) {
+        render_board();
     }
     
-    return true;
-}
+    int turns = 0;
 
-void turn_request(bool is_white, vector<char>& checkerboard_black, vector<char>& checkerboard_white, vector<char>& checkerboard_kings)
-{
-    vector<char> *users_board;
-    vector<char> *enemy_board;
+    while (true) {
 
-    string color_name; // i.e. "Black"
+        turns++;
 
-    char user_char;
+        if (x_turn) {
 
-    if (is_white)
-    {
-        users_board = &checkerboard_white;
-        enemy_board = &checkerboard_black;
-        color_name = "White";
-        char user_char = 'W';
-    }
-    else
-    {
-        users_board = &checkerboard_black;
-        enemy_board = &checkerboard_white;
-        color_name = "Black";
-        char user_char = 'B';
-    }
+            int target_pos = 0;
+            
+            string str_pos;
 
-    vector<char> checkerboard(64, ' ');
-
-    for (int i = 0; i < 64; i++)
-    {
-        if (checkerboard_black[i] != ' ')
-        {
-            checkerboard[i] = checkerboard_black[i];
-        }
-    }
-
-    for (int i = 0; i < 64; i++)
-    {
-        if (checkerboard_white[i] != ' ')
-        {
-            checkerboard[i] = checkerboard_white[i];
-        }
-    }
-
-    cout << "\n"
-         << color_name << "'s turn:\nSelect a position to move on the board [I.E. A,1]\n\n";
-
-    int start_pos = -1;
-
-    string str_pos;
-
-    while (start_pos == -1)
-    {
-        cin >> str_pos;
-        cout << "\n";
-        start_pos = str_pos_to_pos(str_pos, checkerboard_black, checkerboard_white);
-
-        if (is_move_blocked(start_pos, is_white, checkerboard_white, checkerboard_black, checkerboard_kings)) {
-
-            start_pos = -1;
-
-        }
-
-        if ((*users_board)[start_pos] == ' ') {
-            start_pos = -1;
-        }
-
-        if (start_pos == -1)
-        {
-            cout << "Position is invalid. Select a different position. \n";
-        }
-    }
-
-    int target_pos = -1;
-
-    while (target_pos == -1)
-    {
-        cout << "Where would you like to move it to to? [I.E. A,1]\n\n";
-        cin >> str_pos;
-        cout << "\n";
-
-        target_pos = str_pos_to_pos(str_pos, checkerboard_black, checkerboard_white);
-
-        int start_pos_row = floor(start_pos / 8);
-        int start_pos_column = (start_pos % 8);
-        int target_pos_row = floor(target_pos / 8);
-        int target_pos_column = (target_pos % 8);
-
-        int row_diff = abs((start_pos_row - target_pos_row));
-        int col_diff = abs((start_pos_column - target_pos_column));
-
-        int targ_row_diff;
-        if (is_white) {
-            targ_row_diff = -1;
+            if (AIvAI || (!playing_as_X && playing_AI)) {
+                target_pos = generate_AI_Turns('X','O');
+                cout << "\n\nAI:\n";
+            } else {
+                cout << "\n\n(X'S TURN) ENTER POS: (I.E. A,1)\n";
+                cin >> str_pos;
+                target_pos = str_pos_to_int(str_pos);
+            }
+                        
+            if (target_pos == 10 || board_vector[target_pos] == 'X' || board_vector[target_pos] == 'O') {
+                cout << "\nINVALID FORMAT, SPACE IS TAKEN OR OUT OF BOUNDS.\n\nPlease enter a valid input.\n\n";
+            } else {
+                board_vector[target_pos] = 'X'; // 'X' or 'O'
+                x_turn = false;
+            }
+        
         } else {
-            targ_row_diff = 1;
-        }
-
-        int a;
-        if (is_white && (*users_board)[start_pos] == 'B')
-        {
-            target_pos = -1;
-        }
-        else if (!is_white && (*users_board)[start_pos] == 'W')
-        {
-            target_pos = -1;
-        }
-
-        if (col_diff != row_diff || checkerboard[target_pos] != ' ' || (!can_jump(is_white, start_pos, target_pos, checkerboard_black, checkerboard_white, checkerboard_kings) && (col_diff > 1 && col_diff > 1)))
-        {
-            cout << (col_diff != row_diff) << "\n";
-            cout << (checkerboard[target_pos] != ' ') << "\n";
-            cout << ((!can_jump(is_white, start_pos, target_pos, checkerboard_black, checkerboard_white, checkerboard_kings) && (col_diff > 1 && col_diff > 1))) << "\n";
-
-            target_pos = -1;
-        }
-
-        /*if ((start_pos_row - target_pos_row) != targ_row_diff && checkerboard_kings[start_pos] != user_char) {
-            target_pos = -1;
-            cout << "A";
-        }*/
-
-        if (target_pos == -1 || (*users_board)[start_pos] == ' ')
-        {
-            cout << "Position is invalid.\n";
-        }
-
-        if (checkerboard_black[target_pos] != ' ' && checkerboard_white[target_pos] != ' ')
-        {
-            cout << target_pos;
-            cout << "Position is taken.\n";
-            target_pos = -1;
-        }
-
-        if (checkerboard_black[target_pos] == ' ' && checkerboard_white[target_pos] == ' ' && target_pos != -1)
-        {
-            if (is_white && target_pos_row == 7) {
-                checkerboard_kings[target_pos] = 'W';
-            } else if (!is_white && target_pos_row == 0) {
-                checkerboard_kings[target_pos] = 'B';
+            
+            int target_pos = 0;
+            
+            string str_pos;
+            
+            if (AIvAI || (playing_as_X && playing_AI)) {
+                target_pos = generate_AI_Turns('O','X');
+                cout << "\n\nAI:\n";
+            } else {
+                cout << "\n\n(O'S TURN) ENTER POS: (I.E. A,1)\n";
+                cin >> str_pos;
+                target_pos = str_pos_to_int(str_pos);
             }
 
-            if (checkerboard_kings[start_pos] == user_char) {
-                checkerboard_kings[target_pos] = user_char;
-                checkerboard_kings[start_pos] = ' ';
+            if (target_pos == 10 || board_vector[target_pos] == 'X' || board_vector[target_pos] == 'O') {
+                cout << "\nINVALID FORMAT, SPACE IS TAKEN OR OUT OF BOUNDS.\n\nPlease enter a valid input.\n\n";
+            } else {
+                board_vector[target_pos] = 'O';
+                x_turn = true;
             }
-
-            (*users_board)[target_pos] = (*users_board)[start_pos];
-            (*users_board)[start_pos] = ' ';
         }
-    }
-
-    whites_turn = !whites_turn;
-}
-
-int main(int argc, char const *argv[])
-{
-    vector<char> checkerboard_white = init_board(1);
-    vector<char> checkerboard_black = init_board(0);
-    vector<char> checkerboard_kings(64, ' ');
-
-    render_board(checkerboard_black, checkerboard_white, checkerboard_kings);
-
-    /*char answer;
-    cout << "\n\nWould you like to see the rules? [Y/N]";
-    cin >> answer;
-    if (answer == 'Y') {
-        cout << "rules\n";
-    }*/
-
-    while (1)
-    {
-        if (whites_turn)
-        {
-            turn_request(true, checkerboard_black, checkerboard_white, checkerboard_kings);
+        
+        if (turns > 1) {
+            printf("\033c"); // clears board
         }
-        else
-        {
-            turn_request(false, checkerboard_black, checkerboard_white, checkerboard_kings);
+        
+        if (check_for_win('X', 'O', board_vector, 3)) {
+            render_board();
+            x_won = true;
+            x_wins++;
+            display_win_message();
+            sleep(3);
+            board_vector = {' ' , ' ', ' ' , ' ' , ' ' , ' ' , ' ' , ' ' , ' '}; // reset board
+            x_turn = true;
+        }
+        if (check_for_win('O', 'X', board_vector, 3)) {
+            render_board();
+            o_won = true;
+            o_wins++;
+            display_win_message();
+            sleep(3);
+            board_vector = {' ' , ' ', ' ' , ' ' , ' ' , ' ' , ' ' , ' ' , ' '}; // reset board
+            x_turn = true;
         }
 
-        render_board(checkerboard_black, checkerboard_white, checkerboard_kings);
+        int filled_positions = 0;
+        for (int i = 0; i < 9; i++) {
+            if (board_vector[i] != ' ') {
+                filled_positions++;
+            }
+        }
+
+        if (filled_positions == 9 ) { // if board is filled reset board and start anew
+            board_vector = {' ' , ' ', ' ' , ' ' , ' ' , ' ' , ' ' , ' ' , ' '};
+
+            cout << "\nDraw!\n\n";
+
+            x_turn = true;
+            x_won = false;
+            o_won = false;
+
+
+        }
+
+        render_board();
+
+        if (AIvAI) {
+            sleep(1); // Slight delay between AI v. AI turns to give user time to read and observe
+        }
+        /*if (x_won) { // print x won or o won down here to avoid it being printed above the board, and so that the board is not wiped before
+            cout << "\n\nX has won the game!";
+        } else if (o;_won) {
+            cout << "\n\nO has won the game!";
+        }
+        */
     }
 }
